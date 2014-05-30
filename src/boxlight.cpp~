@@ -1,9 +1,0 @@
-#include "boxlight.hpp"
-
-SceneNode* BoxLight::getSceneNode() {
-  NonhierBox* box = new NonhierBox(position, 1);
-  GeometryNode* node = new GeometryNode("light", box);
-  node.setMaterial(new LightMaterial(colour));
-  node->scale(size);
-  return node;
-}
