@@ -1,0 +1,13 @@
+#ifndef RAY_HPP
+#define RAY_HPP
+
+#include "algebra.hpp"
+
+struct Ray {
+  Point3D origin;
+  Vector3D direction;
+
+  Ray(Point3D origin, Vector3D direction) { mOrigin = origin; mDirection = direction; }
+};
+
+#endif

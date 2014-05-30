@@ -1,0 +1,184 @@
+#include "renderer.hpp"
+#include <math.h>
+#include "a4.hpp"
+#include "image.hpp"
+#include "ray.hpp"
+#include "intersection.hpp"
+
+#define PI 3.14159265
+#define MAX_REFLECTION_COUNT 2
+
+Renderer::Renderer(SceneNode* root,
+           const std::string& filename,
+           int width, int height,
+           const Point3D& eye, const Vector3D& view,
+           const Vector3D& up, double fov,
+           const Colour& ambient,
+           const std::list<Light*>& lights) : m_ambient(ambient) {
+
+  // Initialize some variables
+  m_view = view;
+  m_view.normalize();
+  m_up = up;
+  m_up.normalize();
+  m_right = m_view.cross(m_up);
+  m_right.normalize();
+  m_tanf = tan((fov/2)*PI/180);
+  m_aspect = (double)width/(double)height;
+
+  // Load the background png
+  m_background_image.loadPng("background.png");
+
+  // Get the ratio so we can use the right background pixels
+  m_width_ratio = (double)m_background_image.width()/(double)width;
+  m_height_ratio = (double)m_background_image.height()/(double)height;
+
+  // Create the image to save to
+
+  m_width = width;
+  m_height = height;
+  m_ambient = ambient;
+  m_lights = lights;
+  m_root = root;
+  m_eye = eye;
+  m_filename = filename;
+}
+
+Renderer::~Renderer() {
+
+}
+
+void Renderer::render() {
+  Image m_save_image(m_width, m_height, 3);
+  int cur_percent = 0;
+
+  for(m_pixel_y = 0; m_pixel_y < m_height; m_pixel_y++) {
+    for(m_pixel_x = 0; m_pixel_x < m_width; m_pixel_x++) {
+      Ray ray(m_eye, m_view + (((double)m_pixel_x/(double)m_width)-0.5)*m_tanf*m_aspect*m_right + (((double)m_pixel_y/(double)m_height)-0.5)*m_tanf*m_up);
+
+      Colour pixel_colour = rayTrace(ray, 1);
+      m_save_image(m_pixel_x, m_height-m_pixel_y-1, 0) = pixel_colour.R();
+      m_save_image(m_pixel_x, m_height-m_pixel_y-1, 1) = pixel_colour.G();
+      m_save_image(m_pixel_x, m_height-m_pixel_y-1, 2) = pixel_colour.B();
+    }
+    
+    if(((double)m_pixel_y/(double)m_height)*100 >= cur_percent + 10) {
+      cur_percent += 10;
+      std::cout << cur_percent << '%' << " complete" << std::endl; 
+    }
+  }
+
+  m_save_image.savePng(m_filename);
+}
+
+Colour Renderer::rayTrace(Ray ray, int depth) {
+  m_root->intersect(ray);
+
+  // If no intersection was found, return background color
+  if(!ray.hasIntersection()) {
+    if(depth == 1) {
+      return get_background_colour();
+    } else {
+      return Colour(0.9205, 0.9607, 1.0);
+    }
+  }
+
+  Colour pixel_color = Colour(0);
+  Intersection rayI = ray.getIntersection();
+  double reflection = rayI.getMaterial()->get_reflection();
+  Colour diffused = rayI.getMaterial()->get_kd();
+  Colour specular = rayI.getMaterial()->get_ks();
+
+  pixel_color = diffused*m_ambient;
+
+  // Apply all lighting to the surface color
+  for (std::list<Light*>::const_iterator I = m_lights.begin(); I != m_lights.end(); ++I) {
+    Light *light = *I;
+    Intersection light_intersection;
+
+    // Get the direction from the intersection point to the light source
+    Vector3D light_dir = light->position - rayI.getPoint();
+    double lightDistance = light_dir.length();
+    light_dir.normalize();
+
+    // Check if the surface the intersection point is on is facing the light
+    double lambent_coef = light_dir.dot(rayI.getNormal());
+    if(lambent_coef < 0)  {
+      continue;
+    }
+
+    // Check if there is anything blocking light
+    m_root->intersect(rayI.getPoint(), light_dir, light_intersection, true);
+    if(light_intersection.t != -1) {
+      continue;
+    }
+
+    // Calculate the phong lighting
+    Vector3D r = -1*light_dir + 2.0f * (light_dir.dot(rayI.getNormal())) * rayI.getNormal();
+    r.normalize();
+
+   // double phong_coef = phong_dir.dot(ray_dir);
+   // phong_coef = (phong_coef < 0) ? 0 : phong_coef;
+   double attenuation = 1 / (light->falloff[0] + light->falloff[1]*lightDistance + light->falloff[2]*(lightDistance*lightDistance));
+
+    // Adjust pixel colour to account for this lights lambent light + specular reflection
+    pixel_color = pixel_color + diffused * lambent_coef * light->colour * attenuation
+                              + specular * powf(r.dot(ray.getDirection()), ray_intersection.shininess) * light->colour * attenuation;
+  }
+
+  // If the object is reflective, get the color of the reflected object and apply that to the surface color
+  if(reflection > 0 && depth < 8) {
+    Ray ray(rayI.getPoint(), ray.getDirection() - 2*ray.getDirection().dot(rayI.getNormal())*rayI.getNormal());
+    pixel_color = reflection*rayTrace(ray, depth + 1) + ((double)1-reflection)*pixel_color;
+  }
+
+  return pixel_color;
+}
+
+Colour Renderer::get_background_colour() {
+  double r = m_background_image(m_pixel_x * m_width_ratio, (m_height-m_pixel_y-1) * m_height_ratio, 0);
+  double g = m_background_image(m_pixel_x * m_width_ratio, (m_height-m_pixel_y-1) * m_height_ratio, 1);
+  double b = m_background_image(m_pixel_x * m_width_ratio, (m_height-m_pixel_y-1) * m_height_ratio, 2);
+
+  return Colour(r, g, b);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

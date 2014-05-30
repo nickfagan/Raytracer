@@ -1,0 +1,20 @@
+Name: Nick Fagan 
+Student Number: 20342700
+User-id: nmfagan
+Assignment: A3
+
+The final executable was compiled on this machine: g11
+
+How to invoke my program: 
+./rt filename
+
+How to use my extra features: 
+I added recursive ray tracing to create reflective surfaces. I modified scene_lua to parse a new material called ref_material that takes all the same parameters as the normal material and an extra parameter to specify the relectiveness of the surface, 0 means no relfection and 1 means teh surface is perfectly reflective.
+
+I set up my unique scene so that there is a reflective sphere on top of a reflective box so you can see multiple levels of reflection (I set the max times a ray can be reflected to 8)
+
+I have created the following data files, which are in the data directory:
+simple.lua
+
+My program assumes the following: 
+I did not get hierarchical transformations working.

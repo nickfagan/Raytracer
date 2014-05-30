@@ -1,0 +1,13 @@
+#ifndef BOX_LIGHT_HPP
+#define BOX_LIGHT_HPP
+
+#include "algebra.hpp"
+#include "light.hpp"
+#include "primitive.hpp"
+
+struct BoxLight : Light {
+  Vector3D size[3];
+  virtual SceneNode* getSceneNode();
+};
+
+#endif

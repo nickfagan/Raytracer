@@ -1,0 +1,36 @@
+-- A simple scene with five spheres
+
+mat1 = gr.material({0.6, 0.95, 0.3}, {0.5, 0.7, 0.5}, 50)
+mat1b = gr.material({0.6, 0.3, 0.1}, {0.5, 0.7, 0.5}, 50)
+mat2 = gr.ref_material({0.8, 0.8, 0.8}, {1.0, 1.0, 1.0}, 50, 0.9)
+mat3 = gr.ref_material({0.8, 0.8, 0.0}, {1.0, 1.0, 1.0}, 50, 0.5)
+
+scene_root = gr.node('root')
+
+s1 = gr.nh_sphere('s1', {0, 0, -400}, 100)
+scene_root:add_child(s1)
+s1:set_ref_material(mat3)
+
+s3 = gr.nh_box('s3', {-250, -600, -400}, 500)
+scene_root:add_child(s3)
+s3:set_ref_material(mat2)
+
+s1 = gr.nh_sphere('s1', {-150, -50, -375}, 50)
+scene_root:add_child(s1)
+s1:set_material(mat1)
+
+
+s1 = gr.nh_sphere('s1', {150, -50, -375}, 50)
+scene_root:add_child(s1)
+s1:set_material(mat1)
+
+s1 = gr.nh_box('s1', {-180, -30, -310}, 20)
+scene_root:add_child(s1)
+s1:set_material(mat1b)
+
+white_light = gr.light({-300.0, 400.0, 400.0}, {0.9, 0.9, 0.9}, {1, 0, 0})
+red_light = gr.light({300.0, 100.0, -400.0}, {0.7, 0.0, 0.0}, {1, 0, 0})
+
+gr.render(scene_root, 'mine.png', 512, 512,
+	  {0, 0, 800}, {0, 0, -800}, {0, 1, 0}, 50,
+	  {0.3, 0.3, 0.3}, {white_light, red_light})
