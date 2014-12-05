@@ -7,7 +7,7 @@ Primitive::~Primitive()
 {
 }
 
-double  Primitive::intersect_cube(Point3D ray_point, Vector3D ray_dir, Point3D &intersection_point, Vector3D &intersection_normal, Point3D min_pos, Point3D max_pos) {
+double Primitive::intersect_cube(Point3D ray_point, Vector3D ray_dir, Point3D &intersection_point, Vector3D &intersection_normal, Point3D min_pos, Point3D max_pos) {
   double tNear = INT_MIN;
   double tFar = INT_MAX;
 
