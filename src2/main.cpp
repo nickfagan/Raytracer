@@ -5,11 +5,18 @@
 #include <vector>
 #include <string.h>
 
+#include <cstdlib>
+#include <pthread.h>
+#include <unistd.h>
+
 #include "json/json.h"
 #include "scene.hpp"
 #include "global.hpp"
+#include "image.hpp"
 
 using namespace std;
+
+#define NUM_THREADS 4
 
 /****************************************************************************/
 /* Helper Functions */
@@ -228,6 +235,21 @@ Scene* getScene(string sceneJsonFile)
     return parseScene(root["scene"]);
 }
 
+struct SceneThread
+{
+    Scene* scene;
+    Image* image;
+    int pixelStart;
+    int pixelEnd;
+};
+
+void* run(void* arg)
+{
+    SceneThread* sceneThread = (SceneThread*) arg;
+    sceneThread->scene->raytrace(sceneThread->image, sceneThread->pixelStart, sceneThread->pixelEnd);
+    pthread_exit(NULL);
+}
+
 /****************************************************************************/
 /* Entry Point */
 /****************************************************************************/
@@ -280,5 +302,43 @@ int main(int argc, char* argv[])
     cout << " -- height: " << height << endl;
     cout << endl;
     
-    scene->runRaytracer(outfile, width, height);
+    scene->init(outfile, width, height);
+    
+    pid_t rc;
+    pthread_t threads[NUM_THREADS];
+    pthread_attr_t attr;
+    void *status;
+    Image* image = new Image(width, height, 3);
+    
+    int chunks = (width*height)/NUM_THREADS;
+    
+    for(int i=0; i < NUM_THREADS; i++ )
+    {
+        SceneThread *sceneThread = new SceneThread();
+        sceneThread->scene = scene;
+        sceneThread->image = image;
+        sceneThread->pixelStart = chunks*i;
+        sceneThread->pixelEnd = sceneThread->pixelStart + chunks;
+        cout << "Starting Thread " << i << endl;
+        rc = pthread_create(&threads[i], NULL, run, sceneThread);
+        if (rc)
+        {
+            cout << "[Error] Unable to create thread, " << rc << endl;
+            exit(-1);
+        }
+    }
+    
+    // free attribute and wait for the other threads
+    pthread_attr_destroy(&attr);
+    for(int i=0; i < NUM_THREADS; i++ )
+    {
+        rc = pthread_join(threads[i], &status);
+        if (rc)
+        {
+            cout << "[Error] Unable to join, " << rc << endl;
+            exit(-1);
+        }
+    }
+    
+    image->savePng(outfile);
 }

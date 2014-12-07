@@ -1,7 +1,6 @@
 #include <math.h>
 
 #include "scene.hpp"
-#include "image.hpp"
 
 using namespace std;
 
@@ -10,7 +9,7 @@ using namespace std;
 #define REFLECTIVITY_DEPTH 3
 #define PRCT 10
 
-void Scene::runRaytracer(string outfile, int width, int height)
+void Scene::init(string outfile, int width, int height)
 {
     viewDir.normalize();
     upDir.normalize();
@@ -19,19 +18,26 @@ void Scene::runRaytracer(string outfile, int width, int height)
     tanf = tan((fieldOfView/2)*M_PI/180);
     aspect = (double)width/(double)height;
     
+    this->width = width;
+    this->height = height;
+    
     //TODO: this
     ambient = Colour(0.3, 0.3, 0.3);
-    
-    Image image(width, height, 3);
-    
+}
+
+void Scene::raytrace(Image* image, int pixelStart, int pixelEnd)
+{
     int curPrct = 0;
-    int pixelY, pixelX;
+    int pixelX = pixelStart % width;
+    int pixelY = (pixelStart - pixelStart % width) / width;
+    int pixelCount = pixelStart;
+    cout << pixelX << ", " << pixelY << endl;
     
     // for each y pixel
-    for(pixelY = 0; pixelY < height; pixelY++)
+    for(; pixelY < height; pixelY++)
     {
         // for each x pixel
-        for(pixelX = 0; pixelX < width; pixelX++)
+        for(; pixelX < width; pixelX++)
         {
             Point3D origin = eyePos;
             double r = 0;
@@ -47,7 +53,7 @@ void Scene::runRaytracer(string outfile, int width, int height)
                     double rayY = (double)pixelY + (double)j / (double)ANTI_ALIAS;
                     
                     Vector3D direction = viewDir + (((double)rayX/(double)width)-0.5)*tanf*aspect*rightDir
-                                                 + (((double)rayY/(double)height)-0.5)*tanf*upDir;
+                    + (((double)rayY/(double)height)-0.5)*tanf*upDir;
                     direction.normalize();
                     
                     Colour pixel_colour = trace(origin, direction, 1);
@@ -59,18 +65,29 @@ void Scene::runRaytracer(string outfile, int width, int height)
             }
             
             int pixelSamples = ANTI_ALIAS*ANTI_ALIAS;
-            image(pixelX, height-pixelY-1, 0) = r / (double)pixelSamples;
-            image(pixelX, height-pixelY-1, 1) = g / (double)pixelSamples;
-            image(pixelX, height-pixelY-1, 2) = b / (double)pixelSamples;
+            (*image)(pixelX, height-pixelY-1, 0) = r / (double)pixelSamples;
+            (*image)(pixelX, height-pixelY-1, 1) = g / (double)pixelSamples;
+            (*image)(pixelX, height-pixelY-1, 2) = b / (double)pixelSamples;
+            
+            pixelCount++;
+            if(pixelCount >= pixelEnd)
+            {
+                break;
+            }
         }
+        
+        pixelX = 0;
         
         if(((double)(pixelY+1)/(double)height)*100 >= curPrct + PRCT) {
             curPrct += PRCT;
             cout << curPrct << '%' << " complete" << endl;
         }
+        
+        if(pixelCount >= pixelEnd)
+        {
+            break;
+        }
     }
-    
-    image.savePng(outfile);
 }
 
 Colour Scene::trace(Point3D origin, Vector3D direction, int depth)
