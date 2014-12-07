@@ -15,18 +15,18 @@
       },
       {
         "name" : "mat1",
-        "diffused" : [0.5, 0.5, 0.5],
-        "specular" : [0.7, 0.7, 0.7],
-        "shininess" : 10,
+        "diffused" : [0.8, 0.0, 0.0],
+        "specular" : [1.0, 1.0, 1.0],
+        "shininess" : 25,
         "reflectivity" : 0.5
       },
       {
         "name" : "white_light",
-        "diffused" : [255, 255, 255]
+        "diffused" : [1.0, 1.0, 1.0]
       },
       {
         "name" : "blue_light",
-        "diffused" : [0, 200, 255]
+        "diffused" : [0, 0.75, 1.0]
       }
     ],
 
@@ -51,7 +51,7 @@
         "obj" :
         {
           "type" : "sphere",
-          "material" : "white_light",
+          "material" : "blue_light",
           "translate" : [-80.0, 70.0, 0.0],
           "scale" : [5, 5, 5]
         }
@@ -66,7 +66,6 @@
           "type" : "sphere",
           "material" : "mat1",
           "translate" : [-60, -60, -60],
-          "rotate" : {"axis" : "x", "angle"},
           "scale" : [40, 40, 40]
         },
         {

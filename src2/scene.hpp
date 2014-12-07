@@ -22,14 +22,15 @@ class Scene
     std::vector<Light*> lights;
     SceneObj* root;
 
-    bool intersect(Point3D rayOrigin, Vector3D rayDir, IInfo* iInfo);
     void runRaytracer(std::string outfile, int width, int height);
   private:
     Vector3D rightDir;
     double tanf;
     double aspect;
 
+    bool intersect(Point3D rayOrigin, Vector3D rayDir, IInfo& iInfo);
     Colour trace(Point3D origin, Vector3D direction, int depth);
+    void* run(void *image);
 };
 
 #endif

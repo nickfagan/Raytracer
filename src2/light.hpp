@@ -27,7 +27,7 @@ class Light
 
     Colour colour()
     {
-      return obj->material->diffused;
+      return obj->material->diffused * intensity;
     }
 };
 
