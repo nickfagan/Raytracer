@@ -22,10 +22,8 @@ class Scene
     std::vector<Material*> materials;
     std::vector<Light*> lights;
     SceneObj* root;
-    int height;
-    int width;
 
-    void init(std::string outfile, int width, int height);
+    void init(int width, int height);
     void raytrace(Image* image, int pixelStart, int pixelEnd);
   private:
     Vector3D rightDir;

@@ -4,12 +4,13 @@
 
 using namespace std;
 
-#define ANTI_ALIAS 4
+#define ANTI_ALIAS 2
+#define SOFT_SHADOW_SAMPLES 1
 #define BACKGROUND_COLOR Colour(0.4, 0.4, 0.4)
 #define REFLECTIVITY_DEPTH 3
 #define PRCT 10
 
-void Scene::init(string outfile, int width, int height)
+void Scene::init(int width, int height)
 {
     viewDir.normalize();
     upDir.normalize();
@@ -18,26 +19,30 @@ void Scene::init(string outfile, int width, int height)
     tanf = tan((fieldOfView/2)*M_PI/180);
     aspect = (double)width/(double)height;
     
-    this->width = width;
-    this->height = height;
-    
     //TODO: this
     ambient = Colour(0.3, 0.3, 0.3);
 }
 
+/* Renders part of the scene. Uses pixelStart and pixelEnd to figure out what x/y pixel to start
+   and end at */
 void Scene::raytrace(Image* image, int pixelStart, int pixelEnd)
 {
-    int curPrct = 0;
+    int width = image->width();
+    int height = image->height();
+    
+    // Get the x pixel to start at
     int pixelX = pixelStart % width;
+    // Get the y pixel to start at
     int pixelY = (pixelStart - pixelStart % width) / width;
+    
+    // Need to keep track of the number of pixels we rendered in order to stop at the correct spot
     int pixelCount = pixelStart;
-    cout << pixelX << ", " << pixelY << endl;
     
     // for each y pixel
-    for(; pixelY < height; pixelY++)
+    for(; pixelY < height && pixelCount < pixelEnd; pixelY++)
     {
         // for each x pixel
-        for(; pixelX < width; pixelX++)
+        for(; pixelX < width && pixelCount < pixelEnd; pixelX++, pixelCount++)
         {
             Point3D origin = eyePos;
             double r = 0;
@@ -68,25 +73,10 @@ void Scene::raytrace(Image* image, int pixelStart, int pixelEnd)
             (*image)(pixelX, height-pixelY-1, 0) = r / (double)pixelSamples;
             (*image)(pixelX, height-pixelY-1, 1) = g / (double)pixelSamples;
             (*image)(pixelX, height-pixelY-1, 2) = b / (double)pixelSamples;
-            
-            pixelCount++;
-            if(pixelCount >= pixelEnd)
-            {
-                break;
-            }
         }
         
+        // Set the pixel x to 0 in order to render the next "line" of the image
         pixelX = 0;
-        
-        if(((double)(pixelY+1)/(double)height)*100 >= curPrct + PRCT) {
-            curPrct += PRCT;
-            cout << curPrct << '%' << " complete" << endl;
-        }
-        
-        if(pixelCount >= pixelEnd)
-        {
-            break;
-        }
     }
 }
 
@@ -113,9 +103,8 @@ Colour Scene::trace(Point3D origin, Vector3D direction, int depth)
 
     for (int i = 0; i < lights.size(); i++)
     {
-        Vector3D lightDir = lights[i]->position() - iInfo.point;
+        /*Vector3D lightDir = lights[i]->position - iInfo.point;
         double lightDistance = lightDir.length();
-        lightDir.normalize();
         
         double lambentCoef = lightDir.dot(iInfo.normal);
         if(lambentCoef < 0)
@@ -123,10 +112,25 @@ Colour Scene::trace(Point3D origin, Vector3D direction, int depth)
             continue;	// intersection point not facing light
         }
         
-        IInfo lightIInfo;
-        if(intersect(iInfo.point, lightDir, lightIInfo) && lightIInfo.t < lightDistance)
+        int totalSamples = SOFT_SHADOW_SAMPLES * SOFT_SHADOW_SAMPLES;
+        int lightsamples = totalSamples;
+        for(int j = 0; j < totalSamples; j++)
         {
-            continue;	// intersection point doesnt exist or is in another objects shadow
+            Vector3D sampleDir = lights[i]->getPosition(j, SOFT_SHADOW_SAMPLES) - iInfo.point;
+            double distance = sampleDir.length();
+            sampleDir.normalize();
+            
+            IInfo lightIInfo;
+            if(intersect(iInfo.point, sampleDir, lightIInfo) && lightIInfo.t < distance)
+            {
+                lightsamples--;
+            }
+        }
+        
+        // No light reaches this point
+        if(lightsamples == 0)
+        {
+            continue;
         }
         
         Vector3D r = lightDir - 2.0 * lightDir.dot(iInfo.normal) * iInfo.normal;
@@ -138,8 +142,55 @@ Colour Scene::trace(Point3D origin, Vector3D direction, int depth)
         double attenuation = 1 / (lights[i]->falloff[0] + lights[i]->falloff[1]*lightDistance + lights[i]->falloff[2]*lightDistance*lightDistance);
         
         // Adjust pixel colour to account for this lights lambent light + specular reflectivity
-        pixelColor = pixelColor + diffused * lambentCoef * lights[i]->colour() * attenuation
-                                + specular * powf(dot, shininess) * lights[i]->colour() * attenuation;
+        pixelColor = pixelColor + diffused * lambentCoef * lights[i]->getColour() * attenuation + specular * powf(dot, shininess) * lights[i]->getColour() * attenuation;*/
+        
+        Vector3D lightDir = lights[i]->position - iInfo.point;
+        double lightDistance = lightDir.length();
+        lightDir.normalize();
+        
+        double lambentCoef = lightDir.dot(iInfo.normal);
+        if(lambentCoef < 0)
+        {
+            continue;	// intersection point not facing light
+        }
+        
+        double totalSamples = SOFT_SHADOW_SAMPLES * SOFT_SHADOW_SAMPLES;
+        double lightsamples = totalSamples;
+        for(int j = 0; j < totalSamples; j++)
+        {
+            Vector3D sampleDir = lights[i]->getPosition(j, SOFT_SHADOW_SAMPLES) - iInfo.point;
+            double distance = sampleDir.length();
+            sampleDir.normalize();
+            
+            IInfo lightIInfo;
+            if(intersect(iInfo.point, sampleDir, lightIInfo) && lightIInfo.t < distance)
+            {
+                lightsamples--;
+            }
+        }
+        
+        if(lightsamples == 0)
+        {
+            continue;
+        }
+        
+        //IInfo lightIInfo;
+        //if(intersect(iInfo.point, lightDir, lightIInfo) && lightIInfo.t < lightDistance)
+        //{
+        //    continue;	// intersection point doesnt exist or is in another objects shadow
+        //}
+        
+        Vector3D r = lightDir - 2.0 * lightDir.dot(iInfo.normal) * iInfo.normal;
+        r.normalize();
+        
+        double dot = r.dot(direction);
+        dot = (dot < 0) ? 0 : dot;
+        
+        double attenuation = 1 / (lights[i]->falloff[0] + lights[i]->falloff[1]*lightDistance + lights[i]->falloff[2]*lightDistance*lightDistance);
+        
+        // Adjust pixel colour to account for this lights lambent light + specular reflectivity
+        pixelColor = pixelColor + (lightsamples/totalSamples)*(diffused * lambentCoef * lights[i]->getColour() * attenuation
+        + specular * powf(dot, shininess) * lights[i]->getColour() * attenuation);
     }
  
     /*******************************/

@@ -9,6 +9,14 @@ using namespace std;
 /* Scene Obj Functions */
 /****************************************************************************/
 
+SceneObj::~SceneObj()
+{
+    for(int i = 0; i < children.size(); i++)
+    {
+        delete children[i];
+    }
+}
+
 void SceneObj::intersect(Point3D rayOrigin, Vector3D rayDir, IInfo& iInfo)
 {
     // Transform the ray

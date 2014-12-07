@@ -16,7 +16,24 @@
 
 using namespace std;
 
+/****************************************************************************/
+// Compiler Vars
+/****************************************************************************/
+
 #define NUM_THREADS 4
+
+/****************************************************************************/
+// Structs
+/****************************************************************************/
+
+struct ThreadInfo
+{
+    int id;
+    Scene* scene;
+    Image* image;
+    int pixelStart;
+    int pixelEnd;
+};
 
 /****************************************************************************/
 /* Helper Functions */
@@ -49,6 +66,16 @@ Material* getMaterialByName(string name, vector<Material*> materials)
     cout << "[WARNING] Could not find material with name \""<<name<<"\"" << endl;
     
     return NULL;
+}
+
+Colour parseColour(Json::Value j_colour)
+{
+    if(j_colour.size() == 0)
+    {
+        return Colour(0, 0, 0);
+    }
+    
+    return Colour(j_colour[0].asDouble(), j_colour[1].asDouble(), j_colour[2].asDouble());
 }
 
 Point3D parsePoint3D(Json::Value j_point3D)
@@ -90,15 +117,6 @@ SceneObj* parseSceneObj(Json::Value j_sceneObj, vector<Material*> materials)
     }
     else if(typeStr == "mesh")
     {
-        /* 
-         "verticies" : [
-         [-100.0, -100.0, -100.0],
-         [100.0, -100.0, -100.0],
-         [100.0, 200.0, -100.0],
-         [-100.0, 200.0, -100.0]],
-         "faces" : [
-         [0, 1, 2, 3]]
-         */
         sceneObj = new MeshObj();
         
         Json::Value j_verticies = j_sceneObj["verticies"];
@@ -149,7 +167,6 @@ vector<Light*> parseLights(Json::Value j_lights, vector<Material*> materials)
         
         Json::Value j_falloff = j_lights[i]["falloff"];
         Json::Value j_intensity = j_lights[i]["intensity"];
-        Json::Value j_obj = j_lights[i]["obj"];
         
         light->name = j_lights[i].get("name", "").asString();
         light->falloff = new double[3];
@@ -157,7 +174,15 @@ vector<Light*> parseLights(Json::Value j_lights, vector<Material*> materials)
         light->falloff[1] = j_falloff[1].asDouble();
         light->falloff[2] = j_falloff[2].asDouble();
         light->intensity = j_intensity.asDouble();
-        light->obj = parseSceneObj(j_obj, materials);
+        light->position = parsePoint3D(j_lights[i]["position"]);
+        light->colour = parseColour(j_lights[i]["colour"]);
+        light->size = j_lights[i]["size"].asInt();
+        light->type = j_lights[i]["type"].asString();
+        
+        if(light->type == "cube")
+        {
+            light->plain = j_lights[i]["plain"].asString();
+        }
         
         lights[i] = light;
     }
@@ -235,19 +260,80 @@ Scene* getScene(string sceneJsonFile)
     return parseScene(root["scene"]);
 }
 
-struct SceneThread
-{
-    Scene* scene;
-    Image* image;
-    int pixelStart;
-    int pixelEnd;
-};
+/****************************************************************************/
+// Rendering
+/****************************************************************************/
 
-void* run(void* arg)
+void* render(void* arg)
 {
-    SceneThread* sceneThread = (SceneThread*) arg;
-    sceneThread->scene->raytrace(sceneThread->image, sceneThread->pixelStart, sceneThread->pixelEnd);
+    ThreadInfo* tInfo = (ThreadInfo*) arg;
+    tInfo->scene->raytrace(tInfo->image, tInfo->pixelStart, tInfo->pixelEnd);
     pthread_exit(NULL);
+}
+
+void renderScene(Scene* scene, string outfile, int width, int height)
+{
+    pid_t rc;
+    pthread_t threads[NUM_THREADS];
+    void *status;
+    
+    // Initialize the scene
+    scene->init(width, height);
+    
+    // Create the image to write pixel data to
+    Image* image = new Image(width, height, 3);
+    
+    // Get the number of pixel each thread will have to render
+    int leftOverPixels = (width*height) % NUM_THREADS;
+    int pixelChunks = (width*height - leftOverPixels)/NUM_THREADS;
+    
+    // Spawn each thread to work on their respect pixel chunk
+    for(int i=0; i < NUM_THREADS; i++ )
+    {
+        ThreadInfo *tInfo = new ThreadInfo();
+        tInfo->id = i+1;
+        tInfo->scene = scene;
+        tInfo->image = image;
+        tInfo->pixelStart = i * pixelChunks;
+        tInfo->pixelEnd = tInfo->pixelStart + pixelChunks;
+        
+        // If this is the last thread then it needs to render the left over pixels as a result
+        // of width*height not being a nice number
+        if(i == NUM_THREADS - 1)
+        {
+            cout << "Main thread starting, rending pixels from " << tInfo->pixelStart << " to " << (tInfo->pixelEnd + leftOverPixels) << endl;
+            
+            tInfo->pixelEnd += leftOverPixels;
+            tInfo->scene->raytrace(tInfo->image, tInfo->pixelStart, tInfo->pixelEnd + leftOverPixels);
+            break;
+        }
+        
+        cout << "Starting thread " << tInfo->id << ", rending pixels from " << tInfo->pixelStart << " to " << tInfo->pixelEnd << endl;
+        
+        // Spawn the thread
+        rc = pthread_create(&threads[i], NULL, render, tInfo);
+        if (rc)
+        {
+            cout << "[Error] Unable to create thread, " << rc << endl;
+            exit(-1);
+        }
+    }
+    
+    // Main thread waits for all the other threads to finish
+    for(int i=0; i < NUM_THREADS - 1; i++ )
+    {
+        rc = pthread_join(threads[i], &status);
+        if (rc)
+        {
+            cout << "[Error] Unable to join, " << rc << endl;
+            exit(-1);
+        }
+    }
+    
+    cout << "Finished rendering, saving image" << endl;
+    
+    // Once all threads have completed render their part of the scene save the image
+    image->savePng(outfile);
 }
 
 /****************************************************************************/
@@ -267,6 +353,7 @@ int main(int argc, char* argv[])
         return -1;
     }
     
+    // Get the verbose flag
     int arg = 1;
     if(argc == 6)
     {
@@ -283,11 +370,13 @@ int main(int argc, char* argv[])
         }
     }
     
+    // Get the commandline args
     scenefile = argv[arg];
     outfile = argv[arg+1];
     width = atoi(argv[arg+2]);
     height = atoi(argv[arg+3]);
     
+    // Parse the json to create the scene
     Scene* scene = getScene(scenefile);
     if(scene == NULL)
     {
@@ -302,43 +391,6 @@ int main(int argc, char* argv[])
     cout << " -- height: " << height << endl;
     cout << endl;
     
-    scene->init(outfile, width, height);
-    
-    pid_t rc;
-    pthread_t threads[NUM_THREADS];
-    pthread_attr_t attr;
-    void *status;
-    Image* image = new Image(width, height, 3);
-    
-    int chunks = (width*height)/NUM_THREADS;
-    
-    for(int i=0; i < NUM_THREADS; i++ )
-    {
-        SceneThread *sceneThread = new SceneThread();
-        sceneThread->scene = scene;
-        sceneThread->image = image;
-        sceneThread->pixelStart = chunks*i;
-        sceneThread->pixelEnd = sceneThread->pixelStart + chunks;
-        cout << "Starting Thread " << i << endl;
-        rc = pthread_create(&threads[i], NULL, run, sceneThread);
-        if (rc)
-        {
-            cout << "[Error] Unable to create thread, " << rc << endl;
-            exit(-1);
-        }
-    }
-    
-    // free attribute and wait for the other threads
-    pthread_attr_destroy(&attr);
-    for(int i=0; i < NUM_THREADS; i++ )
-    {
-        rc = pthread_join(threads[i], &status);
-        if (rc)
-        {
-            cout << "[Error] Unable to join, " << rc << endl;
-            exit(-1);
-        }
-    }
-    
-    image->savePng(outfile);
+    // Start rendering
+    renderScene(scene, outfile, width, height);
 }

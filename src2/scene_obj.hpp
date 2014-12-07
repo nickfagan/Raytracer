@@ -13,6 +13,8 @@ class SceneObj
 public:
     enum Type {NONE, SPHERE, CUBE, MESH};
     
+    ~SceneObj();
+    
     std::string name;
     Material* material;
     std::vector<SceneObj*> children;

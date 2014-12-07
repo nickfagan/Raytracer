@@ -19,14 +19,6 @@
         "specular" : [1.0, 1.0, 1.0],
         "shininess" : 25,
         "reflectivity" : 0.5
-      },
-      {
-        "name" : "white_light",
-        "diffused" : [1.0, 1.0, 1.0]
-      },
-      {
-        "name" : "blue_light",
-        "diffused" : [0, 0.75, 1.0]
       }
     ],
 
@@ -36,25 +28,21 @@
         "name" : "white_light",
         "falloff" : [1, 0.00001, 0.00001],
         "intensity" : 1.0,
-        "obj" :
-        {
-          "type" : "sphere",
-          "material" : "white_light",
-          "translate" : [80.0, 70.0, 0.0],
-          "scale" : [5, 5, 5]
-        }
+        "position" : [80.0, 70.0, 0.0],
+        "colour" : [1.0, 1.0, 1.0],
+        "size" : 5,
+        "type" : "cube",
+        "plain" : "xz"
       },
       {
         "name" : "blue_light",
         "falloff" : [1, 0.00001, 0.00001],
         "intensity" : 1.0,
-        "obj" :
-        {
-          "type" : "sphere",
-          "material" : "blue_light",
-          "translate" : [-80.0, 70.0, 0.0],
-          "scale" : [5, 5, 5]
-        }
+        "position" : [-80.0, 70.0, 0.0],
+        "colour" : [0, 0.75, 1.0],
+        "size" : 5,
+        "type" : "cube",
+        "plain" : "xz"
       }
     ],
 
