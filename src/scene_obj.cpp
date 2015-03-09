@@ -23,19 +23,20 @@ void SceneObj::intersect(Point3D rayOrigin, Vector3D rayDir, IInfo& iInfo)
     rayOrigin = invtrans * rayOrigin;
     rayDir = invtrans * rayDir;
     
-    // Get the closest intersection info for thei scene objects children
+    // Get the intersection info for this scene object
+    iInfo = getIntersection(rayOrigin, rayDir);
+    
+    // Get the closest intersection info for this scene objects children
     for(int i = 0; i < children.size(); i++)
     {
-        children[i]->intersect(rayOrigin, rayDir, iInfo);
-    }
-    
-    // Get the intersection info for this scene object
-    IInfo thisIInfo = getIntersection(rayOrigin, rayDir);
-    
-    // Check if this scene objs intersection point is closer than its childrens
-    if(thisIInfo.t != -1 && (iInfo.t == -1 || thisIInfo.t < iInfo.t))
-    {
-        iInfo = thisIInfo;
+        IInfo childIInfo;
+        children[i]->intersect(rayOrigin, rayDir, childIInfo);
+        
+        // Check if this scene objs intersection point is closer than its childrens
+        if(childIInfo.t != -1 && (iInfo.t == -1 || childIInfo.t < iInfo.t))
+        {
+            iInfo = childIInfo;
+        }
     }
     
     // If we found an intersection point for this obj then transform it

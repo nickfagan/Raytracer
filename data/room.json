@@ -19,7 +19,16 @@
         "specular" : [1.0, 1.0, 1.0],
         "shininess" : 25,
         "reflectivity" : 0.5
-      }
+     },
+     {
+       "name" : "mat2",
+       "diffused" : [0.0, 0.0, 0.8],
+       "specular" : [1.0, 1.0, 1.0],
+       "shininess" : 25,
+       "reflectivity" : 0.2,
+       "transparency" : 0.6,
+       "refraction_i" : 1.52
+     }
     ],
 
     "lights" :
@@ -54,6 +63,13 @@
           "type" : "sphere",
           "material" : "mat1",
           "translate" : [-60, -60, -60],
+          "scale" : [40, 40, 40]
+        },
+        {
+          "name" : "s2",
+          "type" : "sphere",
+          "material" : "mat2",
+          "translate" : [60, -60, -60],
           "scale" : [40, 40, 40]
         },
         {
