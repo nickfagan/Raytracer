@@ -14,20 +14,17 @@
         "shininess" : 5
       },
       {
-        "name" : "mat1",
+        "name" : "red_mat",
         "diffused" : [0.8, 0.0, 0.0],
         "specular" : [1.0, 1.0, 1.0],
-        "shininess" : 25,
+        "shininess" : 40,
         "reflectivity" : 0.5
      },
      {
-       "name" : "mat2",
-       "diffused" : [0.0, 0.0, 0.8],
+       "name" : "blue_mat",
+       "diffused" : [0.0, 0.0, 0.6],
        "specular" : [1.0, 1.0, 1.0],
-       "shininess" : 25,
-       "reflectivity" : 0.2,
-       "transparency" : 0.6,
-       "refraction_i" : 1.52
+       "shininess" : 10
      }
     ],
 
@@ -59,16 +56,16 @@
       "name" : "root_obj",
       "children" : [
         {
-          "name" : "s1",
+          "name" : "red_sphere",
           "type" : "sphere",
-          "material" : "mat1",
+          "material" : "red_mat",
           "translate" : [-60, -60, -60],
           "scale" : [40, 40, 40]
         },
         {
-          "name" : "s2",
+          "name" : "blue_sphere",
           "type" : "sphere",
-          "material" : "mat2",
+          "material" : "blue_mat",
           "translate" : [60, -60, -60],
           "scale" : [40, 40, 40]
         },

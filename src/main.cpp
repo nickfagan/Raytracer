@@ -11,7 +11,6 @@
 
 #include "json/json.h"
 #include "scene.hpp"
-#include "global.hpp"
 #include "image.hpp"
 
 using namespace std;
@@ -41,7 +40,7 @@ struct ThreadInfo
 
 void usage()
 {
-    cout << "Usage: rt [-v] <scene.json> <outfile> width height" << endl;
+    cout << "Usage: rt <scene.json> <outfile> width height" << endl;
 }
 
 /****************************************************************************/
@@ -206,8 +205,6 @@ vector<Material*> parseMaterials(Json::Value j_materials)
         material->specular = Colour(j_specular[0].asDouble(), j_specular[1].asDouble(), j_specular[2].asDouble());
         material->shininess = j_materials[i].get("shininess", 0).asInt();
         material->reflectivity = j_materials[i].get("reflectivity", 0).asDouble();
-        material->transparency = j_materials[i].get("transparency", 0).asDouble();
-        material->refractionI = j_materials[i].get("refraction_i", 1).asDouble();
         
         materials[i] = material;
     }
@@ -253,7 +250,7 @@ Scene* getScene(string sceneJsonFile)
     bool parsingSuccessful = reader.parse( is, root );
     if ( !parsingSuccessful )
     {
-        std::cout  << "[Error] Failed to parse configuration\n"
+        std::cout  << "[Error] Failed to parse json\n"
         << reader.getFormattedErrorMessages();
         
         return NULL;
@@ -303,9 +300,11 @@ void renderScene(Scene* scene, string outfile, int width, int height)
         // of width*height not being a nice number
         if(i == NUM_THREADS - 1)
         {
-            cout << "Main thread starting, rending pixels from " << tInfo->pixelStart << " to " << (tInfo->pixelEnd + leftOverPixels) << endl;
-            
             tInfo->pixelEnd += leftOverPixels;
+            
+            cout << "Main thread starting, rending pixels from " << tInfo->pixelStart << " to " << (tInfo->pixelEnd + leftOverPixels) << endl;
+            cout << "All threads started, waiting for rendering to complete... (This may take a while)" << endl;
+            
             tInfo->scene->raytrace(tInfo->image, tInfo->pixelStart, tInfo->pixelEnd + leftOverPixels);
             break;
         }
@@ -355,28 +354,11 @@ int main(int argc, char* argv[])
         return -1;
     }
     
-    // Get the verbose flag
-    int arg = 1;
-    if(argc == 6)
-    {
-        if(strcmp(argv[1], "-v"))
-        {
-            g_verbose = true;
-            arg = 2;
-        }
-        else
-        {
-            cout << "[Error] Unknown option \"" << argv[1] << "\"" << endl;
-            usage();
-            return -1;
-        }
-    }
-    
     // Get the commandline args
-    scenefile = argv[arg];
-    outfile = argv[arg+1];
-    width = atoi(argv[arg+2]);
-    height = atoi(argv[arg+3]);
+    scenefile = argv[1];
+    outfile = argv[2];
+    width = atoi(argv[3]);
+    height = atoi(argv[4]);
     
     // Parse the json to create the scene
     Scene* scene = getScene(scenefile);

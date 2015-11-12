@@ -12,8 +12,6 @@ class Material
     Colour specular;
     int shininess;
     double reflectivity;
-    double transparency;
-    double refractionI;
 };
 
 #endif

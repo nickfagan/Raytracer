@@ -15,9 +15,8 @@ using namespace std;
 // Other variables
 /****************************************************************************/
 
-#define BACKGROUND_COLOR Colour(0.4, 0.4, 0.4)
-#define REFLECTIVITY_DEPTH 5
-#define AIR_REFRACTION_INDICE 1.00029
+#define BACKGROUND_COLOR Colour(0.4, 0.4, 0.4)  // Colour that will appear in the image when rays do not intersect anything
+#define REFLECTIVITY_DEPTH 5                    // The max amount of times rays will bounce off reflective objects
 
 /****************************************************************************/
 // Initialization
@@ -32,7 +31,7 @@ void Scene::init(int width, int height)
     tanf = tan((fieldOfView/2)*M_PI/180);
     aspect = (double)width/(double)height;
     
-    //TODO: this
+    // TODO: Define this in json scene file
     ambient = Colour(0.3, 0.3, 0.3);
 }
 
@@ -100,6 +99,8 @@ void Scene::raytrace(Image* image, int pixelStart, int pixelEnd)
 Colour Scene::trace(Point3D origin, Vector3D direction, int depth)
 {
     IInfo iInfo;
+    
+    // Get the intersection info, if intersect returns false then this ray does not intersect anything
     if(!intersect(origin, direction, iInfo))
     {
         return BACKGROUND_COLOR;
@@ -113,28 +114,12 @@ Colour Scene::trace(Point3D origin, Vector3D direction, int depth)
     Colour specular = iInfo.material->specular;
     double shininess = iInfo.material->shininess;
     double reflectivity = iInfo.material->reflectivity;
-    double trancparency = iInfo.material->transparency;
-    double refractionI = iInfo.material->refractionI;
-    
-    if(reflectivity > 1.0) reflectivity = 1.0;
-    else if(reflectivity < 0.0) reflectivity = 0.0;
-    
-    if(trancparency > 1.0) trancparency = 1.0;
-    else if(reflectivity < 0.0) trancparency = 0.0;
-    
-    if(reflectivity + reflectivity > 1.0)
-    {
-        cout << "[WARNING] reflectivity + reflectivity > 1.0" << endl;
-        double diff = (reflectivity + reflectivity) - 1.0;
-        reflectivity -= diff / 2.0;
-        trancparency -= diff / 2.0;
-    }
     
     /*******************************/
     // Apply lighting and shadows
     /*******************************/
     
-    Colour surfaceColour = diffused*ambient;
+    Colour surfaceColour = diffused * ambient;
 
     for (int i = 0; i < lights.size(); i++)
     {
@@ -145,7 +130,7 @@ Colour Scene::trace(Point3D origin, Vector3D direction, int depth)
         double lambentCoef = lightDir.dot(iInfo.normal);
         if(lambentCoef < 0)
         {
-            continue;	// intersection point not facing light
+            continue;	// Intersection point not facing light
         }
         
         double totalSamples = SOFT_SHADOW_SAMPLES * SOFT_SHADOW_SAMPLES;
@@ -177,37 +162,8 @@ Colour Scene::trace(Point3D origin, Vector3D direction, int depth)
         double attenuation = 1 / (lights[i]->falloff[0] + lights[i]->falloff[1]*lightDistance + lights[i]->falloff[2]*lightDistance*lightDistance);
         
         // Adjust pixel colour to account for this lights lambent light + specular reflectivity
-        surfaceColour = surfaceColour + (lightsamples/totalSamples)*(diffused * lambentCoef * lights[i]->getColour() * attenuation
-        + specular * powf(dot, shininess) * lights[i]->getColour() * attenuation);
+        surfaceColour = surfaceColour + (lightsamples/totalSamples)*(diffused * lambentCoef * lights[i]->getColour() * attenuation + specular * powf(dot, shininess) * lights[i]->getColour() * attenuation);
     }
-
-    /*******************************/
-    // Apply transparency (refaction)
-    /*******************************/
-    
-    Colour transparentColour = Colour(0);
-    
-    /*
-    if(transparency > 0)
-    {
-        int n1, n2;
-        
-        // Not inside an object, refracting off outer surface
-        if(insideObj == NULL)
-        {
-            n1 = refractionI;
-            n2 = AIR_REFRACTION_INDICE;
-        }
-        // Inside an object, refracting off inner surface
-        else
-        {
-            n1 = AIR_REFRACTION_INDICE;
-            n2 = refractionI;
-        }
-        
-        //TODO: calc refraction
-    }
-    */
     
     /*******************************/
     // Apply reflectivity (reflection)
@@ -222,9 +178,9 @@ Colour Scene::trace(Point3D origin, Vector3D direction, int depth)
         refDir.normalize();
         reflectedColor = trace(refOrigin, refDir, depth + 1);
     }
-    
-    double surfaceColourAmt = 1.0 - (reflectivity + trancparency);
-    return surfaceColour * surfaceColourAmt + transparentColour * trancparency + reflectedColor * reflectivity;
+
+    // Return the amount of color for this pixel
+    return surfaceColour * (1.0 - reflectivity) + reflectedColor * reflectivity;
 }
 
 bool Scene::intersect(Point3D rayOrigin, Vector3D rayDir, IInfo& iInfo)
