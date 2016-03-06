@@ -11,7 +11,6 @@ A raytracer I intially created for my fourth year computer graphics course in Un
 - Multithreading
 
 ###Running the raytracer
-Simply clone this repository then run the program as follows:
 
 `./rt <scene_json_file> <output_file_name> <width> <height>`
 
